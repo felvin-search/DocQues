@@ -6,6 +6,15 @@ import PyPDF2
 import docx
 import pytesseract
 from PIL import Image
+import requests
+
+
+
+from flask import Flask, request
+from io import BytesIO
+import tempfile
+
+app = Flask(__name__)
 
 def pdftotext(file_name):
   """
@@ -209,51 +218,81 @@ def cleartext(query, output):
   """
   return ["", ""]
 
-with gr.Blocks() as demo:
-    gr.Markdown(
-    """
-    <h1><center><b>DocQues</center></h1>
+@app.route('/', methods=['GET'])
+def pdf_to_text():
+    pdf_url = request.args.get('url')
+    pdf_bytes = requests.get(pdf_url).content
     
-    """)
-    gr.Markdown(
-    """
-    This app answers your queries on longer and multiple documents (pdf/docx/txt/png/jpeg/jpg) you upload. It uses <a href = "https://github.com/jerryjliu/gpt_index">GPT-Index</a> and OpenAI GPT3 in the backend, get your
-    <a href = "https://beta.openai.com/account/api-keys">Openai key here</a> before proceeding further.\n
-    """)
-    gr.Markdown(
-        """
-        <br>**Use this space effectively by following below 2 step process.**</br>
-        *Step-1*
-        <br>- Upload pdf/docx/txt/png/jpeg/jpg format documents. 
-        <br>- Enter your openai key.
-        <br>- Click upload and wait to see if upload is successful or not. </br>
-        *Step-2*
-        <br>- Enter your query. 
-        <br>- Click submit.
-        <br>- Check Answer </br>
+    with tempfile.NamedTemporaryFile(delete=True) as file:
+        file.write(pdf_bytes)
+        file.seek(0)
+        pdf = PyPDF2.PdfReader(file)
+        text = []
+        num_pages = len(pdf.pages)
 
-        Please refer to the GitHub repo this Space is based on, here - <a href = "https://github.com/ravi03071991/DocQues">DocQues</a> .
-        """
-    )
-    with gr.Row():
-      with gr.Column():
-        files = gr.File(label = "Upload pdf/docx/txt format documents.", file_count="multiple")
-        openaikey = gr.Textbox(lines = 1, label = "Enter your OpenAI Key.")
-        upload_button = gr.Button("Upload")
-        query = gr.Textbox(lines = 2, label = "Enter Your Question.")
-        submit_button = gr.Button("Submit")
-      with gr.Column():
-        upload_output = gr.Textbox(label = "Upload/ Error.")
-        ans_output = gr.Textbox(label = "Answer.")
-        clear_button = gr.Button("Clear")
+        for page in range(num_pages):
+          result = pdf.pages[page].extract_text()
+          text.append(result)
 
-    # Upload button for uploading files and openai key.
-    upload_button.click(createindex, inputs=[files, openaikey], outputs= [upload_output] )
+        text = "\n".join(text)
 
-    # Submit button for submitting query.
-    submit_button.click(docques, inputs=[query, openaikey], outputs= [ans_output] )
+    query = request.args.get('q')
+    return text
 
-    # Clear button for clearing query and answer.
-    clear_button.click(cleartext, inputs=[query, ans_output], outputs= [query, ans_output] )
+# Read the file
+# Create the index
+# Ask the question
+# Cache the index so that you don't have to create index over and over
+# Cache the file as well so that you don't have to process the file over and over
 
-demo.launch()
+if __name__ == '__main__':
+    app.run()
+    
+# with gr.Blocks() as demo:
+#     gr.Markdown(
+#     """
+#     <h1><center><b>DocQues</center></h1>
+    
+#     """)
+#     gr.Markdown(
+#     """
+#     This app answers your queries on longer and multiple documents (pdf/docx/txt/png/jpeg/jpg) you upload. It uses <a href = "https://github.com/jerryjliu/gpt_index">GPT-Index</a> and OpenAI GPT3 in the backend, get your
+#     <a href = "https://beta.openai.com/account/api-keys">Openai key here</a> before proceeding further.\n
+#     """)
+#     gr.Markdown(
+#         """
+#         <br>**Use this space effectively by following below 2 step process.**</br>
+#         *Step-1*
+#         <br>- Upload pdf/docx/txt/png/jpeg/jpg format documents. 
+#         <br>- Enter your openai key.
+#         <br>- Click upload and wait to see if upload is successful or not. </br>
+#         *Step-2*
+#         <br>- Enter your query. 
+#         <br>- Click submit.
+#         <br>- Check Answer </br>
+
+#         Please refer to the GitHub repo this Space is based on, here - <a href = "https://github.com/ravi03071991/DocQues">DocQues</a> .
+#         """
+#     )
+#     with gr.Row():
+#       with gr.Column():
+#         files = gr.File(label = "Upload pdf/docx/txt format documents.", file_count="multiple")
+#         openaikey = gr.Textbox(lines = 1, label = "Enter your OpenAI Key.")
+#         upload_button = gr.Button("Upload")
+#         query = gr.Textbox(lines = 2, label = "Enter Your Question.")
+#         submit_button = gr.Button("Submit")
+#       with gr.Column():
+#         upload_output = gr.Textbox(label = "Upload/ Error.")
+#         ans_output = gr.Textbox(label = "Answer.")
+#         clear_button = gr.Button("Clear")
+
+#     # Upload button for uploading files and openai key.
+#     upload_button.click(createindex, inputs=[files, openaikey], outputs= [upload_output] )
+
+#     # Submit button for submitting query.
+#     submit_button.click(docques, inputs=[query, openaikey], outputs= [ans_output] )
+
+#     # Clear button for clearing query and answer.
+#     clear_button.click(cleartext, inputs=[query, ans_output], outputs= [query, ans_output] )
+
+# demo.launch()

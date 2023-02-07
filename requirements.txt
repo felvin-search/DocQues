@@ -3,3 +3,4 @@ pytesseract
 PyPDF2
 python-docx
 gpt-index
+flask
