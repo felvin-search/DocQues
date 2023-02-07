@@ -16,6 +16,8 @@ import tempfile
 
 app = Flask(__name__)
 
+openaikey = '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'
+
 def pdftotext(file_name):
   """
   Function to extract text from .pdf format files
@@ -218,35 +220,72 @@ def cleartext(query, output):
   """
   return ["", ""]
 
+
+
+def save_file(url):
+    file_response = requests.get(url)
+    print(f'{url=}')
+    file_extension = url.split('.')[-1]
+    
+    with tempfile.NamedTemporaryFile(suffix='.' + file_extension) as f:
+        f.write(file_response.content)
+        print(f'{f=}')
+        response = createindex([f], openaikey)
+        print(response)
+        print('index created')
+        return f.name
+
+
+def url_ques(url, query):
+    file = save_file(url)
+
+    # with tempfile.NamedTemporaryFile(delete=True) as file:
+    #     file.write(bytes)
+    #     file.seek(0)
+        
+        # pdf = PyPDF2.PdfReader(file)
+        # text = []
+        # num_pages = len(pdf.pages)
+
+        # for page in range(num_pages):
+        #   result = pdf.pages[page].extract_text()
+        #   text.append(result)
+
+        # text = "\n".join(text)
+
+    print(f'responding to query {query}')
+    response = docques(query, openaikey)
+    return response
+
+def test():
+  url = "https://tmpfiles.org/dl/914866/advisory_agreement-larry_braitman.co.pdf"
+  # url = "https://tmpfiles.org/dl/915007/damini_soni_resume.pdf"
+  # query = "Does the person know Javascript?"
+  query = "How many shares are issued to the advisor?"
+  return url_ques(url, query)
+
+
 @app.route('/', methods=['GET'])
 def pdf_to_text():
-    pdf_url = request.args.get('url')
-    pdf_bytes = requests.get(pdf_url).content
-    
-    with tempfile.NamedTemporaryFile(delete=True) as file:
-        file.write(pdf_bytes)
-        file.seek(0)
-        pdf = PyPDF2.PdfReader(file)
-        text = []
-        num_pages = len(pdf.pages)
-
-        for page in range(num_pages):
-          result = pdf.pages[page].extract_text()
-          text.append(result)
-
-        text = "\n".join(text)
-
+    return test()
+    print("processing request")
+    url = request.args.get('url')
     query = request.args.get('q')
-    return text
+    response = url_ques(url, query)
+    print("request processed")
+    print(f'{response=}')
+    return response
 
-# Read the file
-# Create the index
+# Read the file - Done
+# Create the index - Done, we'll need to wait, or make this a blocking request
+# - 
 # Ask the question
 # Cache the index so that you don't have to create index over and over
 # Cache the file as well so that you don't have to process the file over and over
 
 if __name__ == '__main__':
-    app.run()
+    # app.run()
+    print(test())
     
 # with gr.Blocks() as demo:
 #     gr.Markdown(
